@@ -1,8 +1,11 @@
 [package]
 name = "crs-definitions"
+description = "CRS (coordinate reference system) definitions"
+keywords = ["proj", "projections", "epsg", "geospatial", "osgeo"]
 version = "0.1.0"
 edition = "2021"
 license = "CC0"
 repository = "https://github.com/frewsxcv/crs-definitions"
+categories = ["science::geo"]
 
 [dependencies]
