@@ -9,3 +9,8 @@ repository = "https://github.com/frewsxcv/crs-definitions"
 categories = ["science::geo"]
 
 [dependencies]
+
+[features]
+default = ["proj4", "wkt"]
+proj4 = []
+wkt = []
