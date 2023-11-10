@@ -1,4 +1,5 @@
 /// A CRS definition
+#[derive(Debug, PartialEq)]
 pub struct Def {
     /// EPSG code (e.g. `4326`)
     pub code: u16,
