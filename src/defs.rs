@@ -18,7 +18,9 @@ macro_rules! defs {
         $(
             pub const $name: Def = Def {
                 code: $code,
+                #[cfg(feature = "proj4")]
                 proj4: $proj4,
+                #[cfg(feature = "wkt")]
                 wkt: $wkt,
             };
         )*
