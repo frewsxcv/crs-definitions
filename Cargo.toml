@@ -2,7 +2,7 @@
 name = "crs-definitions"
 description = "CRS (coordinate reference system) definitions"
 keywords = ["proj", "projections", "epsg", "geospatial", "osgeo"]
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 license = "CC0-1.0"
 repository = "https://github.com/frewsxcv/crs-definitions"
