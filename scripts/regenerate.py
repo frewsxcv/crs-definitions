@@ -126,7 +126,14 @@ FROM_CODE_CONST_TAIL = '''        _ => panic!("Unknown EPSG code"),
 
 
 def run(cmd: list[str], *, capture: bool = False, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=capture, text=True, check=check)
+    try:
+        return subprocess.run(cmd, capture_output=capture, text=True, check=check)
+    except subprocess.CalledProcessError as e:
+        if e.stdout:
+            sys.stderr.write(e.stdout)
+        if e.stderr:
+            sys.stderr.write(e.stderr)
+        raise
 
 
 def remove_container() -> None:
