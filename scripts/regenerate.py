@@ -151,47 +151,34 @@ def start_postgis(image: str) -> None:
     ], capture=True)
 
 
-def wait_until_ready() -> None:
-    print("[regenerate] waiting for postgres to be ready", file=sys.stderr)
+def dump_defs_rows() -> list[str]:
+    # PostGIS's entrypoint starts a temporary postgres on the unix socket to
+    # run init scripts (which create the postgis extension and populate
+    # spatial_ref_sys), then restarts the server for real. A naive readiness
+    # check can succeed during the intermediate phase and then race the
+    # restart with "the database system is starting up". Just retry the
+    # actual query until it returns the expected non-empty result.
+    print("[regenerate] dumping EPSG rows from spatial_ref_sys", file=sys.stderr)
     deadline = time.monotonic() + READY_TIMEOUT_S
+    last_err: str | None = None
     while time.monotonic() < deadline:
         result = subprocess.run(
-            ["docker", "exec", CONTAINER_NAME, "pg_isready", "-U", "postgres"],
-            capture_output=True,
+            [
+                "docker", "exec", CONTAINER_NAME,
+                "psql", "-U", "postgres", "-d", "postgres",
+                "-At", "-v", "ON_ERROR_STOP=1", "-c", SQL,
+            ],
+            capture_output=True, text=True,
         )
         if result.returncode == 0:
-            # spatial_ref_sys is populated by the postgis init scripts, which
-            # may still be running even after pg_isready succeeds. Probe the
-            # table directly until we get the expected row count.
-            probe = subprocess.run(
-                [
-                    "docker", "exec", CONTAINER_NAME,
-                    "psql", "-U", "postgres", "-d", "postgres",
-                    "-At", "-c",
-                    "SELECT count(*) FROM spatial_ref_sys WHERE auth_name = 'EPSG';",
-                ],
-                capture_output=True, text=True,
-            )
-            if probe.returncode == 0 and probe.stdout.strip().isdigit() and int(probe.stdout.strip()) > 0:
-                return
+            rows = [line for line in result.stdout.splitlines() if line]
+            if rows:
+                return rows
+            last_err = "SQL returned no rows"
+        else:
+            last_err = (result.stderr or result.stdout or "").strip() or f"psql exited {result.returncode}"
         time.sleep(1)
-    raise RuntimeError(f"postgis did not become ready within {READY_TIMEOUT_S}s")
-
-
-def dump_defs_rows() -> list[str]:
-    print("[regenerate] dumping EPSG rows from spatial_ref_sys", file=sys.stderr)
-    result = run(
-        [
-            "docker", "exec", CONTAINER_NAME,
-            "psql", "-U", "postgres", "-d", "postgres",
-            "-At", "-c", SQL,
-        ],
-        capture=True,
-    )
-    rows = [line for line in result.stdout.splitlines() if line]
-    if not rows:
-        raise RuntimeError("SQL returned no rows")
-    return rows
+    raise RuntimeError(f"postgis did not become ready within {READY_TIMEOUT_S}s: {last_err}")
 
 
 def code_from_row(row: str) -> int:
@@ -239,7 +226,6 @@ def main() -> int:
 
     try:
         start_postgis(args.image)
-        wait_until_ready()
         rows = dump_defs_rows()
     finally:
         if not args.keep_container:
